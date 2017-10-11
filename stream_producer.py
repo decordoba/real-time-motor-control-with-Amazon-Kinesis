@@ -104,7 +104,8 @@ def main():
         if args.period != None:
             put_numbers_in_stream_periodically(kinesis_client, stream_name, args.period)
         else:
-            put_words_in_stream(kinesis_client, stream_name, [str(0)])
+            pass
+            # put_words_in_stream(kinesis_client, stream_name, [str(0)])
     
     # Delete stream when we finish
     #kinesis_client.delete_stream(StreamName=stream_name)
