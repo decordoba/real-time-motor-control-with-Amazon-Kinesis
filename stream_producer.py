@@ -14,7 +14,7 @@ stream_producer.py -s STREAM_NAME -p 500
     parser.add_argument("-s", "--stream", dest="stream_name", required=True,
                         help="The stream you'd like to create.", metavar="STREAM_NAME",)
     parser.add_argument("-r", "--regionName", "--region", dest="region", default="us-east-1",
-                        help="The region you'd like to make this stream in. Default is 'us-east-1'", metavar="REGION_NAME",)
+                        help="The region you'd like to make this stream in. Default is 'us-east-1'.", metavar="REGION_NAME",)
     parser.add_argument("-w", "--word", dest="words", default=[], action="append",
                         help="A word to add to the stream. Can be specified multiple times to add multiple words.", metavar="WORD",)
     parser.add_argument("-p", "--period", dest="period", type=int,
