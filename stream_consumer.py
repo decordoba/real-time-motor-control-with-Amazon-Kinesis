@@ -1,0 +1,62 @@
+import argparse
+import time
+import boto3
+
+
+def create_parser():
+    parser = argparse.ArgumentParser("""
+Read and print the contents of a selected stream every p milliseconds. It will only print up to 10000 records every iteration.
+""")
+    parser.add_argument("-s", "--stream", dest="stream_name", required=True,
+                        help="The stream you'd like to create.", metavar="STREAM_NAME",)
+    parser.add_argument("-r", "--regionName", "--region", dest="region", default="us-east-1",
+                        help="The region you'd like to make this stream in. Default is 'us-east-1'", metavar="REGION_NAME",)
+    parser.add_argument("-p", "--period", dest="period", type=int, default=None,
+                        help="How often to read stream", metavar="MILLISECONDS",)
+    return parser.parse_args()
+
+
+def main():
+    args = create_parser()
+    stream_name = args.stream_name
+
+    print("Connecting to stream '{}' in region '{}'.".format(stream_name, args.region))
+    kinesis_client = boto3.client('kinesis', region_name=args.region)
+    try:
+        # The stream does exist already (if no Exception occurs)
+        stream_description = kinesis_client.describe_stream(StreamName=stream_name)
+        status = stream_description["StreamDescription"]["StreamStatus"]
+        if status != "ACTIVE":
+            print("The stream '{}' has status {}, please rerun the script when the stream is ACTIVE.".format(stream_name))
+            return
+        else:
+            shard_id = stream_description["StreamDescription"]["Shards"][0]["ShardId"]
+    except:
+        # We assume the stream didn't exist so we will try to create it with just one shard
+        print("The stream '{}' was not found, please rerun the script when the stream has been created.".format(stream_name))
+        return
+
+    # If we reach this point, the string is active
+    shard_iterator_type = "TRIM_HORIZON"  # 'AT_SEQUENCE_NUMBER'|'AFTER_SEQUENCE_NUMBER'|'TRIM_HORIZON'|'LATEST'|'AT_TIMESTAMP'
+    shard_iterator = kinesis_client.get_shard_iterator(StreamName=stream_name, ShardId=shard_id, ShardIteratorType=shard_iterator_type)["ShardIterator"]
+    
+    max_num_records = 10000
+    # Get records, print them and sleep (forever)
+    if args.period is not None:
+        sleep_time = args.period / 1000.0
+        while True:
+            records = kinesis_client.get_records(ShardIterator=shard_iterator, Limit=max_num_records)
+            for r in records["Records"]:
+                print(r["Data"])
+        
+            time.sleep(sleep_time)
+    
+    # Get records and print them once
+    records = kinesis_client.get_records(ShardIterator=shard_iterator, Limit=max_num_records)
+    for r in records["Records"]:
+        print(r["Data"])
+
+
+if __name__ == '__main__':
+    main()
+
