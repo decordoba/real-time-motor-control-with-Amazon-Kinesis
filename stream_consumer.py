@@ -6,18 +6,23 @@ import boto3
 
 def create_parser():
     parser = argparse.ArgumentParser("""
-Read and print the contents of a selected stream every p milliseconds. It will only print up to 10000 records every iteration.
+Read and print the contents of a selected stream every p milliseconds.
+It will only print up to 10000 records every iteration.
 """)
     parser.add_argument("-s", "--stream", dest="stream_name", required=True,
                         help="The stream you'd like to create.", metavar="STREAM_NAME",)
     parser.add_argument("-r", "--regionName", "--region", dest="region", default="us-east-1",
-                        help="The region you'd like to make this stream in. Default is 'us-east-1'", metavar="REGION_NAME",)
+                        help="The region you'd like to make this stream in. Default is "
+                        "'us-east-1'", metavar="REGION_NAME",)
     parser.add_argument("-p", "--period", dest="period", type=int, default=None,
                         help="How often to read stream", metavar="MILLISECONDS",)
-    choices=["TRIM_HORIZON", "LATEST", "AT_SEQUENCE_NUMBER", "AFTER_SEQUENCE_NUMBER", "AT_TIMESTAMP"]
-    parser.add_argument("-sit", "--shard_iterator_type", dest="shard_iterator_type", type=str, default=choices[0],
-                        choices=choices, help="Select what data will be returned from stream every query. "
-                        "Options are {}. Default is '{}'.".format(choices, choices[0]), metavar="SHARD_ITERATOR_TYPE")
+    choices = ["TRIM_HORIZON", "LATEST", "AT_SEQUENCE_NUMBER", "AFTER_SEQUENCE_NUMBER",
+               "AT_TIMESTAMP"]
+    parser.add_argument("-sit", "--shard_iterator_type", dest="shard_iterator_type", type=str,
+                        default=choices[0], choices=choices, help="Select what data will be "
+                        "returned from stream every query. Options are "
+                        "{}. Default is '{}'.".format(choices, choices[0]),
+                        metavar="SHARD_ITERATOR_TYPE")
     return parser.parse_args()
 
 
@@ -32,13 +37,15 @@ def main():
         stream_description = kinesis_client.describe_stream(StreamName=stream_name)
         status = stream_description["StreamDescription"]["StreamStatus"]
         if status != "ACTIVE":
-            print("The stream '{}' has status {}, please rerun the script when the stream is ACTIVE.".format(stream_name))
+            print("The stream '{}' has status {}, please rerun the script when the stream "
+                  "is ACTIVE.".format(stream_name))
             return
         else:
             shard_id = stream_description["StreamDescription"]["Shards"][0]["ShardId"]
     except:
         # We assume the stream didn't exist so we will try to create it with just one shard
-        print("The stream '{}' was not found, please rerun the script when the stream has been created.".format(stream_name))
+        print("The stream '{}' was not found, please rerun the script when the stream has "
+              "been created.".format(stream_name))
         return
 
     # If we reach this point, the string is active
@@ -65,17 +72,18 @@ def main():
     if args.period is not None:
         sleep_time = args.period / 1000.0
         while True:
-            records = kinesis_client.get_records(ShardIterator=shard_iterator, Limit=max_num_records)
+            records = kinesis_client.get_records(ShardIterator=shard_iterator,
+                                                 Limit=max_num_records)
             shard_iterator = records["NextShardIterator"]  # Update shard_iterator
             millis_behind = records["MillisBehindLatest"]
             if millis_behind != 0:
                 print("We are {} ms behind".format(millis_behind))
-                sleep(3)
+                time.sleep(3)
             for r in records["Records"]:
                 print(r["Data"])
 
             time.sleep(sleep_time)
-    
+
     # Get records and print them once
     records = kinesis_client.get_records(ShardIterator=shard_iterator, Limit=max_num_records)
     for r in records["Records"]:
@@ -84,4 +92,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
