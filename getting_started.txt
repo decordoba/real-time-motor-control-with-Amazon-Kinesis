@@ -1,0 +1,12 @@
+$ git clone https://github.com/adafruit/Adafruit-Motor-HAT-Python-Library.git
+$ cd Adafruit-Motor-HAT-Python-Library/
+$ sudo python3 setup.py install
+$ sudo apt-get install -y python-smbus
+$ sudo apt install i2c-tools
+$ sudo raspi-config  # enable I2C
+$ reboot
+$ pip3 install matplotlib --user
+$ pip3 install boto3 --user
+$ pip3 install awscli --upgrade --user
+$ aws --version  # make sure it works
+$ aws configure  # enter keys, region and default output
