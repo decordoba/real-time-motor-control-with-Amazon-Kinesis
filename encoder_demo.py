@@ -51,4 +51,4 @@ try:
         clkLastState = clkState
         sleep(0.01)
 finally:
-        GPIO.cleanup()
+    GPIO.cleanup()
