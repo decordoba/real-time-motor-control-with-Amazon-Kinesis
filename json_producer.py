@@ -76,12 +76,12 @@ def main():
         # Create object
         obj = {}
         obj["sensor"] = int(random.randint(1, 5) // 2)  # sensor 1 and 2 are more likely
+        n[obj["sensor"]] += 1
         value = random.random()
         value = value * 3 if random.random() < 0.02 else value  # Add some anomalies
         obj["value"] = int(value * 100000) / 100000.0
-        obj["timestamp"] = str(datetime.datetime.now())
         obj["sequence"] = n[obj["sensor"]]
-        n[obj["sensor"]] += 1
+        obj["timestamp"] = str(datetime.datetime.now())
 
         # Convert to json
         json_str = json.dumps(obj)
