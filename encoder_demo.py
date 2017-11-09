@@ -49,6 +49,5 @@ try:
                 counter -= 1
             print("Position: {}".format(counter))
         clkLastState = clkState
-        sleep(0.01)
 finally:
     GPIO.cleanup()
