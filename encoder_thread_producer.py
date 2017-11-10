@@ -3,17 +3,15 @@ import argparse
 import boto3
 import datetime
 import json
+import threading
 import time
 
 
 """
-WARNING:
-This code may not work well because the rate at which messages can be sent into the stream is not
-fast enough to get an accurate encoder position reading. See 'encoder_thread_producer.py' for a
-solution to this problem. This code will only work for encoders that don't need to be read faster
-than once every 200ms (approximate value).
-
-This program will send the state of the encoder as fast as possible.
+This program will send the state of the encoder at a selected rate.
+The encoder needs to be read as fast as possible to make sure that we don't miss any frame.
+For this reason, we are using a separate thread to read the encoder and update its position,
+and we will stream such position at a periodic, lower-frequency rate.
 This code should be used in a Raspberry Pi connected to an encoder.
 
 In my case, I am using the JGA25-371 motor with encoder. This code only uses the encoder.
@@ -35,9 +33,13 @@ def create_parser():
                         help="The region you'd like to make this stream in. Default "
                         "is 'us-east-1'", metavar="REGION_NAME",)
     parser.add_argument("-p", "--period", dest="period", type=int,
-                        help="Period to wait between every encoder parse and stream transmition. "
+                        help="Period to wait between every stream transmition. "
                         "If not set, data will be sent as fast as possible.",
                         metavar="MILLISECONDS",)
+    parser.add_argument("--clk", dest="clk", default=17, help="The GPIO where our encoder's clk "
+                        "wire will be connected. Default is 17.", metavar="GPIO_NUMBER",)
+    parser.add_argument("--dt", dest="dt", default=18, help="The GPIO where our encoder's dt "
+                        "wire will be connected. Default is 18.", metavar="GPIO_NUMBER",)
     return parser.parse_args()
 
 
@@ -78,6 +80,65 @@ def connect_to_stream(kinesis_client, stream_name):
     return True
 
 
+class encoder_reader(threading.Thread):
+    # Parse encoder as fast as possible, and if
+    def __init__(self, clk, dt, sensor_index=0):
+        threading.Thread.__init__(self)
+
+        # Save inputs
+        self.clk = clk
+        self.dt = dt
+        self.sensor_index = sensor_index
+
+        # Initialize the GPIO's that will be used in the Raspberry Pi
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self.clk, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        GPIO.setup(self.dt, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+
+        # Create required variables
+        self.position = 0
+        self.counter = 0
+        self.message_number = 0
+
+        # Create variable to stop thread
+        self.stop_event = threading.Event()
+
+    def run(self):
+        clk_last_state = GPIO.input(self.clk)
+        # Update encoder position
+        try:
+            while not self.stop_event.is_set():
+                clk_state = GPIO.input(self.clk)
+                dt_state = GPIO.input(self.dt)
+                if clk_state != clk_last_state:
+                    if dt_state != clk_state:
+                        self.position += 1
+                    else:
+                        self.position -= 1
+                clk_last_state = clk_state
+                self.counter += 1
+            GPIO.cleanup()  # Clean GPIOs when stopped
+        finally:
+            # When the program ends after an exception (Ctrl+C or other), make sure to clean GPIOs
+            GPIO.cleanup()
+
+    def status(self):
+        # Create json object that will be sent
+        obj = {}
+        obj["sensor"] = self.sensor_index
+        obj["value"] = self.position
+        obj["timestamp"] = str(datetime.datetime.now())
+        obj["sequence"] = self.message_number
+        obj["counter"] = self.counter
+        self.message_number += 1
+
+        # Convert dictionary to json and return it
+        return json.dumps(obj)
+
+    def stop(self):
+        self.stop_event.set()
+
+
 def main():
     args = create_parser()
 
@@ -88,59 +149,26 @@ def main():
     if not connect_to_stream(kinesis_client, stream_name):
         return
 
-    # Select where the two data channels are connected
-    clk = 17
-    dt = 18
+    # Start thread to monitor encoder's position
+    reader = encoder_reader(args.clk, args.dt)
+    reader.start()
 
-    # Initialize the GPIO's that will be used in the Raspberry Pi
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(clk, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-    GPIO.setup(dt, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-
-    # Read the encoder and send position to stream
-    n = 0
-    position = 0
-    clkLastState = GPIO.input(clk)
-    sleep_s = None if args.period is None else args.period / 1000
+    # Send encoder values into stream at args.period rate
+    sleep_s = 0.0 if args.period is None or args.period < 0 else args.period / 1000.0
     try:
         while True:
-            # Update encoder position
-            clkState = GPIO.input(clk)
-            dtState = GPIO.input(dt)
-            if clkState != clkLastState:
-                if dtState != clkState:
-                    position += 1
-                else:
-                    position -= 1
-            clkLastState = clkState
-
-            # Create json object that will be sent
-            obj = {}
-            obj["sensor"] = 1
-            obj["value"] = position
-            obj["timestamp"] = str(datetime.datetime.now())
-            obj["sequence"] = n
-            n += 1
-
-            # Convert dictionary to json
-            json_str = json.dumps(obj)
-
-            # Send into stream
+            encoder_str = reader.status()
             try:
-                kinesis_client.put_record(StreamName=stream_name, Data=json_str, PartitionKey=":)")
-                print("{}. Sent encoder position {} into stream '{}'.".format(n, obj["value"],
-                                                                              stream_name))
+                kinesis_client.put_record(StreamName=stream_name, Data=encoder_str,
+                                          PartitionKey=";P")
+                print("Sent encoder message {} into stream '{}'.".format(encoder_str, stream_name))
             except Exception as e:
                 print("Encountered an exception while trying to put record sensor data into "
                       "stream '{}'.".format(stream_name))
                 print("Exception: {}.".format(e))
-
-            if sleep_s is not None:
-                # print("Sleeping for {} milliseconds.".format(args.period))
-                time.sleep(sleep_s)
-    # When the program ends (because Ctrl+C or other), make sure to clean GPIOs
+            time.sleep(sleep_s)
     finally:
-        GPIO.cleanup()
+        reader.stop()
 
 
 if __name__ == '__main__':
