@@ -98,12 +98,16 @@ class encoder_reader(threading.Thread):
         # Create required variables
         self.position = 0
         self.counter = 0
+        self.message_number = 0
+
+        # Create variable to stop thread
+        self.stop_event = threading.Event()
 
     def run(self):
         clk_last_state = GPIO.input(self.clk)
         # Update encoder position
         try:
-            while True:
+            while not self.stop_event.is_set():
                 clk_state = GPIO.input(self.clk)
                 dt_state = GPIO.input(self.dt)
                 if clk_state != clk_last_state:
@@ -113,8 +117,9 @@ class encoder_reader(threading.Thread):
                         self.position -= 1
                 clk_last_state = clk_state
                 self.counter += 1
-        # When the program ends (because Ctrl+C or other), make sure to clean GPIOs
+            GPIO.cleanup()  # Clean GPIOs when stopped
         finally:
+            # When the program ends after an exception (Ctrl+C or other), make sure to clean GPIOs
             GPIO.cleanup()
 
     def status(self):
@@ -123,10 +128,15 @@ class encoder_reader(threading.Thread):
         obj["sensor"] = self.sensor_index
         obj["value"] = self.position
         obj["timestamp"] = str(datetime.datetime.now())
-        obj["sequence"] = self.counter
+        obj["sequence"] = self.message_number
+        obj["counter"] = self.counter
+        self.message_number += 1
 
         # Convert dictionary to json and return it
         return json.dumps(obj)
+
+    def stop(self):
+        self.stop_event.set()
 
 
 def main():
@@ -140,21 +150,25 @@ def main():
         return
 
     # Start thread to monitor encoder's position
-    reader = encoder_reader(args.clk, args.dt, args.period)
+    reader = encoder_reader(args.clk, args.dt)
     reader.start()
 
     # Send encoder values into stream at args.period rate
     sleep_s = 0.0 if args.period is None or args.period < 0 else args.period / 1000.0
-    while True:
-        encoder_str = reader.status()
-        try:
-            kinesis_client.put_record(StreamName=stream_name, Data=encoder_str, PartitionKey=":)")
-            print("Sent encoder message {} into stream '{}'.".format(encoder_str, stream_name))
-        except Exception as e:
-            print("Encountered an exception while trying to put record sensor data into "
-                  "stream '{}'.".format(stream_name))
-            print("Exception: {}.".format(e))
-        time.sleep(sleep_s)
+    try:
+        while True:
+            encoder_str = reader.status()
+            try:
+                kinesis_client.put_record(StreamName=stream_name, Data=encoder_str,
+                                          PartitionKey=";P")
+                print("Sent encoder message {} into stream '{}'.".format(encoder_str, stream_name))
+            except Exception as e:
+                print("Encountered an exception while trying to put record sensor data into "
+                      "stream '{}'.".format(stream_name))
+                print("Exception: {}.".format(e))
+            time.sleep(sleep_s)
+    finally:
+        reader.stop()
 
 
 if __name__ == '__main__':
