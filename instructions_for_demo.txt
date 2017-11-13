@@ -15,18 +15,19 @@ python3 encoder_motor_converter.py -sin encoder_data -sout motor_data
 # Change motor's goal position
 python3 goal_producer.py -s encoder_data
 
+# See delays local PID control and 2 streams
+python3 json_producer.py -s encoder_data
+python3 json_consumer.py -s motor_data -t 30 -p 150
 
 ### EC2 INSTANCE
-# Show delays
+# Show delays one stream
 python3 json_producer.py -s demo_stream
 python3 json_consumer.py -s demo_stream -t 30 -p 150
 
-
-### Kinesis delays
-# See delays
+# See delays kinesis analytics and 2 streams
 python3 json_producer.py -s sin
 python3 json_consumer.py -s sout -t 30 -p 150
 
-# See pid transformation
+# See pid transformation kinesis analytics
 python3 json_producer.py -s sin -p 500
 python3 stream_consumer.py -s sout -p 200 -sit LATEST
