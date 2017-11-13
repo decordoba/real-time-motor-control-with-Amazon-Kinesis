@@ -1,0 +1,16 @@
+### RASPBERRY PI
+# Start encoder streamer
+python3 encoder_thread_producer.py -s encoder_data
+
+# Start motor reader
+python3 stream_producer.py -s motor_data
+python3 motor_consumer.py -s motor_data
+
+# Write some values to the motor as an example
+python3 motor_producer -s motor_data
+
+
+### EC2 INSTANCE
+# Show delays
+python3 json_producer.py -s demo_stream
+python3 json_consumer.py -s demo_stream -t 30 -p 150
