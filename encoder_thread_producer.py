@@ -82,13 +82,13 @@ def connect_to_stream(kinesis_client, stream_name):
 
 class encoder_reader(threading.Thread):
     # Parse encoder as fast as possible, and if
-    def __init__(self, clk, dt, sensor_index=0):
+    def __init__(self, clk, dt, message_type=0):
         threading.Thread.__init__(self)
 
         # Save inputs
         self.clk = clk
         self.dt = dt
-        self.sensor_index = sensor_index
+        self.message_type = message_type
 
         # Initialize the GPIO's that will be used in the Raspberry Pi
         GPIO.setmode(GPIO.BCM)
@@ -125,7 +125,7 @@ class encoder_reader(threading.Thread):
     def status(self):
         # Create json object that will be sent
         obj = {}
-        obj["sensor"] = self.sensor_index
+        obj["msg_type"] = self.message_type
         obj["value"] = self.position
         obj["timestamp"] = str(datetime.datetime.now())
         obj["sequence"] = self.message_number
@@ -150,7 +150,7 @@ def main():
         return
 
     # Start thread to monitor encoder's position
-    reader = encoder_reader(args.clk, args.dt)
+    reader = encoder_reader(args.clk, args.dt, message_type=0)  # type 0 refers to encoder data
     reader.start()
 
     # Send encoder values into stream at args.period rate

@@ -10,7 +10,8 @@ This program will send all messages received from an UDP connection into a selec
 
 
 def create_parser():
-    parser = argparse.ArgumentParser("Send encoder data as json objects into a selected stream.")
+    parser = argparse.ArgumentParser("Send messages received from an UDP connection into a "
+                                     "selected stream.")
     parser.add_argument("-s", "--stream", dest="stream_name", required=True,
                         help="The stream you'd like to create.", metavar="STREAM_NAME",)
     parser.add_argument("-r", "--regionName", "--region", dest="region", default="us-east-1",
