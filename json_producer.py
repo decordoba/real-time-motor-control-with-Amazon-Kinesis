@@ -8,7 +8,7 @@ import json
 
 def create_parser():
     parser = argparse.ArgumentParser("""
-Send random sensor data as json objects into a selected stream.
+Send random data as json objects into a selected stream.
 """)
     parser.add_argument("-s", "--stream", dest="stream_name", required=True,
                         help="The stream you'd like to create.", metavar="STREAM_NAME",)
@@ -16,7 +16,7 @@ Send random sensor data as json objects into a selected stream.
                         help="The region you'd like to make this stream in. Default "
                         "is 'us-east-1'", metavar="REGION_NAME",)
     parser.add_argument("-p", "--period", dest="period", type=int,
-                        help="Period to wait between sending sensor data. If not set, data will "
+                        help="Period to wait between sending json messages. If not set, data will "
                         "be sent as fast as possible.",
                         metavar="MILLISECONDS",)
     return parser.parse_args()
@@ -71,16 +71,18 @@ def main():
 
     # Now the stream should exist
     n = [0, 0, 0]
-    sleep_s = None if args.period is None else args.period / 1000
+    sleep_s = 0.0 if args.period is None else args.period / 1000
     while True:
         # Create object
         obj = {}
-        obj["sensor"] = int(random.randint(1, 5) // 2)  # sensor 1 and 2 are more likely
-        n[obj["sensor"]] += 1
-        value = random.random()
-        value = value * 3 if random.random() < 0.02 else value  # Add some anomalies
-        obj["value"] = int(value * 100000) / 100000.0
-        obj["sequence"] = n[obj["sensor"]]
+        r = random.randint(1, 501)
+        obj["msg_type"] = 0 if r < 401 else (1 if r < 501 else 2)
+        if obj["msg_type"] == 1:
+            obj["value"] = float(int(random.random() * 256))  # Value in range [0, 255]
+        else:
+            obj["value"] = random.random() * 2000 - 1000  # Value in range [-1000.0, 1000.0)
+        n[obj["msg_type"]] += 1
+        obj["sequence"] = n[obj["msg_type"]]
         obj["timestamp"] = str(datetime.datetime.now())
 
         # Convert to json
@@ -89,17 +91,15 @@ def main():
         # Send into stream
         try:
             kinesis_client.put_record(StreamName=stream_name, Data=json_str, PartitionKey="123")
-            print("Sent data '{:.5f}' from sensor '{}' into stream '{}'.".format(obj["value"],
-                                                                                 obj["sensor"],
-                                                                                 stream_name))
+            print("{:5}. Sent data '{:+.5f}' with message type '{}' into stream '{}'.".format(
+                    obj["sequence"], obj["value"], obj["msg_type"], stream_name))
         except Exception as e:
-            print("Encountered an exception while trying to put record sensor data into "
-                  "stream '{}'.".format(stream_name))
+            print("Encountered an exception while trying to put record '{}'".format(json_str) +
+                  " into stream '{}'.".format(stream_name))
             print("Exception: {}.".format(e))
 
-        if sleep_s is not None:
-            # print("Sleeping for {} milliseconds.".format(args.period))
-            time.sleep(sleep_s)
+        # print("Sleeping for {} milliseconds.".format(args.period))
+        time.sleep(sleep_s)
 
 
 if __name__ == '__main__':
