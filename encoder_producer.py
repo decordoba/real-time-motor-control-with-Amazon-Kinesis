@@ -116,7 +116,7 @@ def main():
 
             # Create json object that will be sent
             obj = {}
-            obj["sensor"] = 1
+            obj["msg_type"] = 0  # type 0 refers to encoder data
             obj["value"] = position
             obj["timestamp"] = str(datetime.datetime.now())
             obj["sequence"] = n

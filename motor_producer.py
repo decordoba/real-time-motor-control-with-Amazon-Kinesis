@@ -14,10 +14,6 @@ Send random sensor data as json objects into a selected stream.
     parser.add_argument("-r", "--regionName", "--region", dest="region", default="us-east-1",
                         help="The region you'd like to make this stream in. Default "
                         "is 'us-east-1'", metavar="REGION_NAME",)
-    parser.add_argument("-p", "--period", dest="period", type=int,
-                        help="Period to wait between sending sensor data. If not set, data will "
-                        "be sent as fast as possible.",
-                        metavar="MILLISECONDS",)
     return parser.parse_args()
 
 
@@ -71,7 +67,6 @@ def main():
     # Now the stream should exist
     usr_input = ""
     counter = 0
-    sleep_s = 0.0 if args.period is None or args.period < 0 else args.period / 1000.0
     while len(usr_input) == 0 or usr_input[0].lower() != "q":
         usr_input = input("Enter motor speed (integer from -255 to 255). Type 999 to release it. Type q to exit.\n>> ")
         if usr_input[0].lower() == "q":
@@ -103,8 +98,6 @@ def main():
             print("Encountered an exception while trying to put record '{}' into "
                   "stream '{}'.".format(json_str, stream_name))
             print("Exception: {}.".format(e))
-
-        time.sleep(sleep_s)
 
 
 if __name__ == '__main__':
