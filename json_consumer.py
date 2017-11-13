@@ -1,4 +1,5 @@
 import argparse
+import json
 import datetime
 import time
 import numpy as np
@@ -78,19 +79,15 @@ def main():
                 time.sleep(sleep_time)
             except Exception as e:
                 number_exceptions += 1
-                # print(e)
-                # sleep_time += 0.001
-                # print(sleep_time)
                 time.sleep(0.01)
-            # time.sleep(sleep_time)
         print("Finished data monitoring.".format(args.timeout))
     except KeyError:
         print("Ctrl+C interrupt received, prematurely halting data monitoring.")
 
+    # Calculate delay and print some data about them
     delays = []
     for json_obj0, time1 in start_end_times:
-        idx = json_obj0.index(b'"timestamp": "') + 14
-        time0 = json_obj0[idx:idx + 26].decode("utf-8")
+        time0 = json.loads(json_obj0.decode("utf-8"))["timestamp"]
         delay = time1 - datetime.datetime.strptime(time0, "%Y-%m-%d %H:%M:%S.%f")
         delays.append(delay)
     delays = np.array(delays)
@@ -105,6 +102,7 @@ def main():
     print("Std: {:.3f} ms".format(np.std(delays_ms)))
     print("Err: {}".format(number_exceptions))
 
+    # Convert data to historiogram and cumulative format
     bucket_delays_ms = [0] * int(np.max(delays_ms) + 1)
     for d in delays_ms:
         bucket_delays_ms[int(d)] += 1
@@ -113,6 +111,8 @@ def main():
     for d in bucket_delays_ms:
         prev_delay += d
         cum_delays_ms.append(prev_delay)
+
+    # Plot 4 figures
     plt_ion()
     plotLine(delays_ms, x_label="samples", y_label="ms", title="Delays", figure=0, color="r")
     plotLine(bucket_delays_ms, x_label="ms", y_label="# cases", title="Historiogram delays",
