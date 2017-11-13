@@ -104,7 +104,6 @@ def main():
             time.sleep(sleep_s)
         except Exception as e:
             time.sleep(0.01)
-            print(e)
 
 
 if __name__ == '__main__':
