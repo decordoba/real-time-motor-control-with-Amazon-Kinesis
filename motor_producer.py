@@ -79,7 +79,7 @@ def main():
 
         # Create object
         obj = {}
-        obj["sensor"] = 1
+        obj["msg_type"] = 1  # type 1 refers to motor data
         obj["value"] = speed
         obj["sequence"] = counter
         obj["timestamp"] = str(datetime.datetime.now())

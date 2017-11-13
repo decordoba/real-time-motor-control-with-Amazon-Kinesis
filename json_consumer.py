@@ -3,7 +3,7 @@ import datetime
 import time
 import numpy as np
 import boto3
-from matplotlib_utils import plotLine, plt_ion, plt_ioff
+from matplotlib_utils import plotLine, plotPlotBox, plt_ion, plt_ioff
 
 
 def create_parser():
@@ -98,10 +98,11 @@ def main():
     print("Samples: {}".format(len(delays)))
     if len(delays) == 0:
         return
-    print("Min: {}".format(np.min(delays)))
-    print("Max: {}".format(np.max(delays)))
-    print("Avg: {}".format(np.mean(delays)))
-    print("Std: {}".format(np.std(delays_ms)))
+    print("Min: {:.3f} ms".format(np.min(delays_ms)))
+    print("Max: {:.3f} ms".format(np.max(delays_ms)))
+    print("Med: {:.3f} ms".format(np.median(delays_ms)))
+    print("Avg: {:.3f} ms".format(np.mean(delays_ms)))
+    print("Std: {:.3f} ms".format(np.std(delays_ms)))
     print("Err: {}".format(number_exceptions))
 
     bucket_delays_ms = [0] * int(np.max(delays_ms) + 1)
@@ -118,6 +119,7 @@ def main():
              figure=1, color="b")
     plotLine(cum_delays_ms, x_label="ms", y_label="# cases", title="Cumulative delays", figure=2,
              color="m")
+    plotPlotBox(delays_ms, y_label="ms", title="Box plot delays", figure=3)
     plt_ioff()
     input("Type ENTER to close all figures.")
 

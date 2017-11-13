@@ -81,3 +81,20 @@ def transformCurvesToPlot(y_pts, x_pts):
                 new_y_pts.append([y])
                 new_x_pts.append([x])
     return (new_y_pts, new_x_pts)
+
+
+def plotPlotBox(y_pts, y_label=None, x_label=None, title=None, axis=None, label=None, show=True,
+                figure=0):
+    plt.figure(figure)
+    plt.boxplot(y_pts)
+    if y_label is not None:
+        plt.ylabel(y_label)
+    if x_label is not None:
+        plt.xlabel(x_label)
+    if title is not None:
+        plt.title(title)
+    if axis is not None:
+        plt.axis(axis)
+    plt.draw()
+    if show:
+        plt.show()
