@@ -7,7 +7,13 @@ python3 stream_producer.py -s motor_data
 python3 motor_consumer.py -s motor_data
 
 # Write some values to the motor as an example
-python3 motor_producer -s motor_data
+python3 motor_producer.py -s motor_data
+
+# Attempt PID control
+python3 encoder_motor_converter.py -sin encoder_data -sout motor_data
+
+# Change motor's goal position
+python3 goal_producer.py -s encoder_data
 
 
 ### EC2 INSTANCE
