@@ -14,3 +14,13 @@ python3 motor_producer -s motor_data
 # Show delays
 python3 json_producer.py -s demo_stream
 python3 json_consumer.py -s demo_stream -t 30 -p 150
+
+
+### Kinesis delays
+# See delays
+python3 json_producer.py -s sin
+python3 json_consumer.py -s sout -t 30 -p 150
+
+# See pid transformation
+python3 json_producer.py -s sin -p 500
+python3 stream_consumer.py -s sout -p 200 -sit LATEST
