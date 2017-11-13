@@ -43,8 +43,7 @@ def plotLine(y_pts, x_pts=None, y_label=None, x_label=None, title=None, axis=Non
         plt.xlabel(x_label)
     if title is not None:
         plt.title(title)
-        figname = title + ".png"
-        figname.replace(" ", "_")
+        figname = title.replace(" ", "_") + ".png"
     else:
         figname = str(figure) + ".png"
     if axis is not None:
@@ -55,7 +54,6 @@ def plotLine(y_pts, x_pts=None, y_label=None, x_label=None, title=None, axis=Non
     if show:
         plt.show()
     plt.savefig("figures/{}".format(figname))
-
 
 
 # pyplot can print more than one curve at the same time, but it doesn't do it in an intuitive way.
@@ -99,8 +97,7 @@ def plotPlotBox(y_pts, y_label=None, x_label=None, title=None, axis=None, label=
         plt.xlabel(x_label)
     if title is not None:
         plt.title(title)
-        figname = title + ".png"
-        figname.replace(" ", "_")
+        figname = title.replace(" ", "_") + ".png"
     else:
         figname = str(figure) + ".png"
     if axis is not None:
