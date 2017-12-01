@@ -49,6 +49,9 @@ def create_parser():
     parser.add_argument("-mp", "--motor_period", dest="motor_period", type=int,
                         help="Period to wait between every time we write to the motor. "
                         "Default is 1 ms.", default=1, metavar="MILLISECONDS",)
+    parser.add_argument("-ns", "--number_samples", dest="number_samples", type=int,
+                        help="Number of samples (values sent to the motor) before stopping the"
+                        "program. Default is 10000.", default=10000, metavar="MOTOR_WRITES",)
     return parser.parse_args()
 
 
@@ -127,13 +130,12 @@ class encoder_reader(threading.Thread):
                         self.position -= 1
                 clk_last_state = clk_state
                 self.counter += 1
-            GPIO.cleanup()  # Clean GPIOs when stopped
         finally:
             # When the program ends after an exception (Ctrl+C or other), make sure to clean GPIOs
             GPIO.cleanup()
 
     def get_angle(self):
-        pos = (self.position % self.one_turn_value) / self.one_turn_value * 360
+        pos = int((self.position % self.one_turn_value) / self.one_turn_value * 360)
         if pos > 180:
             return 360 - pos
         return pos
@@ -243,12 +245,10 @@ class motor_writer(threading.Thread):
                 print(self.counter, motor_value, encoder_value)
                 self.add_json_to_list(encoder_value, motor_value, i)
                 self.counter += 1
-                if self.counter > self.num_samples:
+                if self.counter >= self.num_samples:
                     break
-            self.turn_off_motors  # Release motors when stopped
-            self.stop()
         finally:
-            # When the program ends after an exception (Ctrl+C or other), release motors
+            # When the program ends after an exception or naturally, release motors
             self.turn_off_motors()
             self.stop()
 
@@ -297,7 +297,8 @@ def main():
     reader.start()
 
     # Start thread to change motor's position
-    writer = motor_writer(args.motor, reader, period_ms=args.motor_period)
+    writer = motor_writer(args.motor, reader, period_ms=args.motor_period,
+                          num_samples=args.number_samples)
     writer.start()
 
     # Send encoder values into stream at args.period rate
@@ -305,6 +306,20 @@ def main():
     try:
         while not writer.finished():
             encoder_motor_str = writer.status()
+            if encoder_motor_str != "[]":
+                try:
+                    kinesis_client.put_record(StreamName=stream_name, Data=encoder_motor_str,
+                                              PartitionKey=";P")
+                    print("Sent encoder message {} into stream '{}'.".format(encoder_motor_str,
+                                                                             stream_name))
+                except Exception as e:
+                    print("Encountered an exception while trying to put record sensor data into "
+                          "stream '{}'.".format(stream_name))
+                    print("Exception: {}.".format(e))
+            time.sleep(sleep_s)
+        # Send remaining messages before terminating
+        encoder_motor_str = writer.status()
+        if encoder_motor_str != "[]":
             try:
                 kinesis_client.put_record(StreamName=stream_name, Data=encoder_motor_str,
                                           PartitionKey=";P")
@@ -314,7 +329,6 @@ def main():
                 print("Encountered an exception while trying to put record sensor data into "
                       "stream '{}'.".format(stream_name))
                 print("Exception: {}.".format(e))
-            time.sleep(sleep_s)
     finally:
         writer.stop()
         reader.stop()
