@@ -14,8 +14,8 @@ This program will send random values to the motor, and read what the encoder rec
 Then, it will send ipairs of values (motors and encoders) to a stream.
 The encoder needs to be read as fast as possible to make sure that we don't miss any frame.
 For this reason, we are using a separate thread to read the encoder and update its position.
-Then we have another thread to write a position into the motor every ms and read the encoder
-value. Finally, we will stream such values at a periodic, lower-frequency rate.
+We also have another thread to write a position into the motor every ms and read the encoder value.
+Finally, we will stream such values at a periodic, lower-frequency rate.
 This code should be used in a Raspberry Pi connected to an encoder.
 
 In my case, I am using the JGA25-371 motor with encoder. This code only uses the encoder.
@@ -91,13 +91,14 @@ def connect_to_stream(kinesis_client, stream_name):
 
 class encoder_reader(threading.Thread):
     # Parse encoder as fast as possible
-    def __init__(self, clk, dt, message_type=0):
+    def __init__(self, clk, dt, one_turn_value=500, message_type=0):
         threading.Thread.__init__(self)
 
         # Save inputs
         self.clk = clk
         self.dt = dt
         self.message_type = message_type
+        self.one_turn_value = one_turn_value
 
         # Initialize the GPIO's that will be used in the Raspberry Pi
         GPIO.setmode(GPIO.BCM)
@@ -132,7 +133,7 @@ class encoder_reader(threading.Thread):
             GPIO.cleanup()
 
     def get_angle(self):
-        pos = self.position % 360
+        pos = (self.position % self.one_turn_value) / self.one_turn_value * 360
         if pos > 180:
             return 360 - pos
         return pos
@@ -200,6 +201,7 @@ class motor_writer(threading.Thread):
 
     def move_motor(self, speed):
         dire = 1
+        speed = int(speed)
         if speed < 0:
             speed = -speed
             dire = -1
@@ -238,15 +240,17 @@ class motor_writer(threading.Thread):
                 encoder_value, i = self.reader.value()
                 motor_value = self.motor_values[self.counter]
                 self.move_motor(motor_value)
-                print(motor_value, encoder_value)
+                print(self.counter, motor_value, encoder_value)
                 self.add_json_to_list(encoder_value, motor_value, i)
                 self.counter += 1
                 if self.counter > self.num_samples:
                     break
             self.turn_off_motors  # Release motors when stopped
+            self.stop()
         finally:
             # When the program ends after an exception (Ctrl+C or other), release motors
             self.turn_off_motors()
+            self.stop()
 
     def add_json_to_list(self, encoder_value, motor_value, encoder_counter=0):
         # Create json object that will be sent
@@ -274,6 +278,9 @@ class motor_writer(threading.Thread):
     def stop(self):
         self.stop_event.set()
 
+    def finished(self):
+        return self.stop_event.is_set()
+
 
 def main():
     args = create_parser()
@@ -296,7 +303,7 @@ def main():
     # Send encoder values into stream at args.period rate
     sleep_s = 0.0 if args.period is None or args.period < 0 else args.period / 1000.0
     try:
-        while True:
+        while not writer.finished():
             encoder_motor_str = writer.status()
             try:
                 kinesis_client.put_record(StreamName=stream_name, Data=encoder_motor_str,
