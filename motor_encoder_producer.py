@@ -46,6 +46,9 @@ def create_parser():
                         "wire will be connected. Default is 18.", metavar="GPIO_NUMBER",)
     parser.add_argument("--motor", "-m", dest="motor", default=1, type=int, help="The motor "
                         "that is being controlled. Default is 1.", choices=[1, 2, 3, 4])
+    parser.add_argument("-mp", "--motor_period", dest="motor_period", type=int,
+                        help="Period to wait between every time we write to the motor. "
+                        "Default is 1 ms.", default=1, metavar="MILLISECONDS",)
     return parser.parse_args()
 
 
@@ -181,6 +184,10 @@ class motor_writer(threading.Thread):
         self.json_idx = 0
         self.message_number = 0
 
+        # Create variables to move motor more efficiently
+        self.prev_direction = None
+        self.prev_speed = None
+
         # Create variable to stop thread
         self.stop_event = threading.Event()
 
@@ -190,6 +197,20 @@ class motor_writer(threading.Thread):
         self.mh.getMotor(2).run(Adafruit_MotorHAT.RELEASE)
         self.mh.getMotor(3).run(Adafruit_MotorHAT.RELEASE)
         self.mh.getMotor(4).run(Adafruit_MotorHAT.RELEASE)
+
+    def move_motor(self, speed):
+        dire = 1
+        if speed < 0:
+            speed = -speed
+            dire = -1
+        if speed > 255:
+            speed = 255
+        if dire != self.prev_direction:
+            self.motor.run(Adafruit_MotorHAT.FORWARD if dire == 1 else Adafruit_MotorHAT.BACKWARD)
+            self.prev_direction = dire
+        if speed != self.prev_speed:
+            self.motor.setSpeed(speed)
+            self.prev_speed = speed
 
     def create_motor_values(self, length_values=10000, num_sine_waves=5, range_values=(-255, 255)):
         # Create random motor values vector using several sine waves
@@ -216,6 +237,7 @@ class motor_writer(threading.Thread):
                     pass
                 encoder_value, i = self.reader.value()
                 motor_value = self.motor_values[self.counter]
+                self.move_motor(motor_value)
                 print(motor_value, encoder_value)
                 self.add_json_to_list(encoder_value, motor_value, i)
                 self.counter += 1
@@ -268,7 +290,7 @@ def main():
     reader.start()
 
     # Start thread to change motor's position
-    writer = motor_writer(args.motor, reader, period_ms=1, message_type=3)  # type3: encoder+motor
+    writer = motor_writer(args.motor, reader, period_ms=args.motor_period)
     writer.start()
 
     # Send encoder values into stream at args.period rate
