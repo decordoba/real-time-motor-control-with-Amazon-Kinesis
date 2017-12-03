@@ -86,7 +86,7 @@ def main():
             print("Constant set to: {}".format(constant))
             continue
         try:
-            value = int(usr_input)
+            value = float(usr_input)
         except ValueError:
             print("Error in speed value.")
             continue
@@ -110,7 +110,7 @@ def main():
             kinesis_client.put_record(StreamName=stream_name, Data=json_str, PartitionKey="123")
             print("{}. Sent PID value {}: '{:.2f}' into stream '{}'.".format(obj["sequence"],
                                                                              constant,
-                                                                             obj["value"],
+                                                                             value,
                                                                              stream_name))
         except Exception as e:
             print("Encountered an exception while trying to put record '{}' into "

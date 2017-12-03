@@ -54,7 +54,7 @@ def create_parser():
     parser.add_argument("-mp", "--motor_period", dest="motor_period", type=int,
                         help="Period to wait every time we write to the motor. "
                         "Default is 1 ms.", default=1, metavar="MILLISECONDS",)
-    defaults = (1.0, 0.0, 0.0)  # For P, I, D
+    defaults = (2.5, 0.0, 0.6)  # For P, I, D
     parser.add_argument("-pc", "--p_constant", dest="p_constant", default=defaults[0],
                         type=float, help="Initial P constant. Default is {}.".format(defaults[0]))
     parser.add_argument("-ic", "--i_constant", dest="i_constant", default=defaults[1],
@@ -118,12 +118,15 @@ class encoder_reader(threading.Thread):
         GPIO.setup(self.dt, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
         # Create required variables
-        self.position = 0
-        self.counter = 0
+        self.reset()
         self.message_number = 0
 
         # Create variable to stop thread
         self.stop_event = threading.Event()
+
+    def reset(self):
+        self.position = 0
+        self.counter = 0
 
     def run(self):
         clk_last_state = GPIO.input(self.clk)
@@ -173,7 +176,8 @@ class encoder_reader(threading.Thread):
 
 class motor_writer(threading.Thread):
     # Write motor and read encoder, and save both values into a list
-    def __init__(self, motor, encoder_reader, period_ms=1, encoder_sample_diff=1, p=1, i=0, d=0):
+    def __init__(self, motor, encoder_reader, period_ms=1, encoder_sample_diff=1, p=1, i=0, d=0,
+                 invert_motor=False):
         threading.Thread.__init__(self)
 
         # Save inputs
@@ -181,6 +185,7 @@ class motor_writer(threading.Thread):
         self.reader = encoder_reader
         self.period_ms = period_ms
         self.period = datetime.timedelta(seconds=self.period_ms / 1000)
+        self.invert_motor = invert_motor
 
         # Create default object to control the motor using the MototrHAT (I2C)
         self.mh = Adafruit_MotorHAT(addr=0x60)
@@ -221,6 +226,8 @@ class motor_writer(threading.Thread):
             dire = -1
         if speed > 255:
             speed = 255
+        if self.invert_motor:
+            dire = -dire
         if dire != self.prev_direction:
             self.motor.run(Adafruit_MotorHAT.FORWARD if dire == 1 else Adafruit_MotorHAT.BACKWARD)
             self.prev_direction = dire
@@ -229,19 +236,23 @@ class motor_writer(threading.Thread):
             self.prev_speed = speed
 
     def update_pid_constants(self, p=None, i=None, d=None):
-        if p is not None:
+        if p is not None and p != 999:
             self.p = p
-        if i is not None:
+        if i is not None and i != 999:
             self.i = i
-        if d is not None:
+        if d is not None and d != 999:
             self.d = d
 
     def update_goal_value(self, goal):
-        if goal > 180:
-            goal = 180
-        if goal < -180:
-            goal = -180
-        self.goal_value = goal
+        if goal == 999:
+            # Stop motor and reset current value and goal value
+            self.reset()
+        else:
+            if goal > 180:
+                goal = 180
+            if goal < -180:
+                goal = -180
+            self.goal_value = goal
 
     def get_pid(self):
         # Get encoder value 1 and timestamp 1
@@ -258,18 +269,36 @@ class motor_writer(threading.Thread):
             # Get encoder value 2 and timestamp 2
             encoder_value2, id2 = self.reader.value()
             time2 = datetime.datetime.now()
+        # If goal is near 180 discontinuity, move discontinuity to 0
+        if self.goal_value > 90 or self.goal_value < -90:
+            if encoder_value1 < 0:
+                encoder_value1 = 360 - encoder_value1
+            if encoder_value2 < 0:
+                encoder_value2 = 360 - encoder_value2
         # Calculate PID values and return motor speed
         time_diff = (time2 - time1).total_seconds()
         proportional = self.p * (encoder_value2 - self.goal_value)
         derivative = self.d * (encoder_value2 - encoder_value1) / (time_diff)
         integral = 0 * self.i
+        speed = proportional + derivative + integral
         # print("FINAL IDS", id1, id2)
         # print(self.p, self.i, self.d)
         # print(self.goal_value)
         # print("Diff time", time_diff)
         # print(proportional, derivative, integral)
-        print(encoder_value1, encoder_value2)
-        return proportional + derivative + integral
+        print(encoder_value1, encoder_value2, speed, self.goal_value)
+        # print(encoder_value1, encoder_value2, self.p, self.i, self.d, self.goal_value)
+        return speed
+
+    def reset(self):
+        # Stop motor and reset current value and goal value, and reset encoder
+        self.move_motor(0)
+        time.sleep(0.1)
+        self.reader.reset()
+        self.goal_value, _ = self.reader.value()  # set initial goal to current encoder position
+        time.sleep(0.1)
+        self.reader.reset()
+        self.goal_value, _ = self.reader.value()  # set initial goal to current encoder position
 
     def run(self):
         # Move motor pseudo-randomly and save encoder and motor values
@@ -342,7 +371,7 @@ def main():
     # Start thread to change motor's position according to PID
     writer = motor_writer(args.motor, reader, period_ms=args.motor_period,
                           p=args.p_constant, i=args.i_constant, d=args.d_constant,
-                          encoder_sample_diff=1)
+                          encoder_sample_diff=1, invert_motor=True)
     writer.start()
 
     # Receive pid config from 'stream in' and send pid progress into 'stream out'
