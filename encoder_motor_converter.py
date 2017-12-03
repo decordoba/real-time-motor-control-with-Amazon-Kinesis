@@ -100,7 +100,7 @@ def main():
                                                        ShardId=shard_id,
                                                        ShardIteratorType=shard_iterator_type)["ShardIterator"]
 
-    # Send messages from in to out after transforming them
+    # Send messages from 'stream in' to 'stream out' after transforming them
     max_num_records = 10000
     sleep_s = 0.0 if args.period is None else args.period / 1000
     p_constant = 255 / 180

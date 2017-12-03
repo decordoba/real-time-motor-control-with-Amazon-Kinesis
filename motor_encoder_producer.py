@@ -135,6 +135,7 @@ class encoder_reader(threading.Thread):
             GPIO.cleanup()
 
     def get_angle(self):
+        # Calculate angle in degrees (from -180 to 180)
         pos = int((self.position % self.one_turn_value) / self.one_turn_value * 360)
         if pos > 180:
             return 360 - pos
@@ -170,7 +171,8 @@ class motor_writer(threading.Thread):
         self.motor_number = motor
         self.reader = encoder_reader
         self.num_samples = num_samples
-        self.period = period_ms / 1000  # self.period is in seconds
+        self.period_ms = period_ms
+        self.period = datetime.timedelta(seconds=self.period_ms / 1000)
         self.message_type = message_type
 
         # Create default object to control the motor using the MototrHAT (I2C)
@@ -202,6 +204,7 @@ class motor_writer(threading.Thread):
         self.mh.getMotor(4).run(Adafruit_MotorHAT.RELEASE)
 
     def move_motor(self, speed):
+        # Make motor move in selected speed and direction
         dire = 1
         speed = int(speed)
         if speed < 0:
@@ -235,8 +238,8 @@ class motor_writer(threading.Thread):
         try:
             while not self.stop_event.is_set():
                 # Calculate termination time
-                terminate_time = datetime.datetime.now() + datetime.timedelta(seconds=self.period)
-                # Active wait, but apparently time.sleep has an accuracy of ~1ms
+                terminate_time = datetime.datetime.now() + self.period
+                # Active wait because apparently time.sleep has an accuracy of ~1ms
                 while datetime.datetime.now() < terminate_time:
                     pass
                 encoder_value, i = self.reader.value()
