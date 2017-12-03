@@ -138,7 +138,7 @@ class encoder_reader(threading.Thread):
         # Calculate angle in degrees (from -180 to 180)
         pos = int((self.position % self.one_turn_value) / self.one_turn_value * 360)
         if pos > 180:
-            return 360 - pos
+            return pos - 360
         return pos
 
     def status(self):

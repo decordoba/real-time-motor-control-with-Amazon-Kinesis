@@ -54,7 +54,7 @@ def create_parser():
     parser.add_argument("-mp", "--motor_period", dest="motor_period", type=int,
                         help="Period to wait every time we write to the motor. "
                         "Default is 1 ms.", default=1, metavar="MILLISECONDS",)
-    defaults = (1, 0, 0)  # For P, I, D
+    defaults = (1.0, 0.0, 0.0)  # For P, I, D
     parser.add_argument("-pc", "--p_constant", dest="p_constant", default=defaults[0],
                         type=float, help="Initial P constant. Default is {}.".format(defaults[0]))
     parser.add_argument("-ic", "--i_constant", dest="i_constant", default=defaults[1],
@@ -147,7 +147,7 @@ class encoder_reader(threading.Thread):
         # Calculate angle in degrees (from -180 to 180)
         pos = int((self.position % self.one_turn_value) / self.one_turn_value * 360)
         if pos > 180:
-            return 360 - pos
+            return pos - 360
         return pos
 
     def status(self):
@@ -199,7 +199,7 @@ class motor_writer(threading.Thread):
         self.p = p
         self.i = i
         self.d = d
-        self.goal_value = self.reader.value()  # set initial goal to current encoder position
+        self.goal_value, _ = self.reader.value()  # set initial goal to current encoder position
         self.min_encoder_sample_difference = encoder_sample_diff if encoder_sample_diff > 0 else 1
 
         # Create variable to stop thread
@@ -258,12 +258,17 @@ class motor_writer(threading.Thread):
             # Get encoder value 2 and timestamp 2
             encoder_value2, id2 = self.reader.value()
             time2 = datetime.datetime.now()
-            print("IDS", id1, id2)
-        print("FINAL IDS", id1, id2)
         # Calculate PID values and return motor speed
+        time_diff = (time2 - time1).total_seconds()
         proportional = self.p * (encoder_value2 - self.goal_value)
-        derivative = self.d * (encoder_value2 - encoder_value1) / (time2 - time1)
+        derivative = self.d * (encoder_value2 - encoder_value1) / (time_diff)
         integral = 0 * self.i
+        # print("FINAL IDS", id1, id2)
+        # print(self.p, self.i, self.d)
+        # print(self.goal_value)
+        # print("Diff time", time_diff)
+        # print(proportional, derivative, integral)
+        print(encoder_value1, encoder_value2)
         return proportional + derivative + integral
 
     def run(self):
@@ -273,7 +278,7 @@ class motor_writer(threading.Thread):
             while not self.stop_event.is_set():
                 motor_value = self.get_pid()
                 self.move_motor(motor_value)
-                self.add_json_to_list(motor_value)
+                # self.add_json_to_list(motor_value)
                 self.counter += 1
         finally:
             # When the program ends after an exception or naturally, release motors
