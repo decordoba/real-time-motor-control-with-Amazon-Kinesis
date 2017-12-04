@@ -15,7 +15,8 @@ def plt_ioff():
 # x_pts as lists of lists.
 # @use transformCurvesToPlot([[-2,2],[-2,-1,0,1,2],[0,0]], [[0,0],[-2,-1,0,1,2],[-2,2]])
 def plotLine(y_pts, x_pts=None, y_label=None, x_label=None, title=None, axis=None, style="-",
-             color="", y_scale="linear", x_scale="linear", label=None, show=True, figure=0):
+             color="", y_scale="linear", x_scale="linear", label=None, show=True, figure=0,
+             filename=None):
     """
     :param y_pts: y coordinates. A list of list can represent several lines
     :param x_pts: x coordinates. A list of list can represent several lines
@@ -46,6 +47,8 @@ def plotLine(y_pts, x_pts=None, y_label=None, x_label=None, title=None, axis=Non
         figname = title.replace(" ", "_") + ".png"
     else:
         figname = str(figure) + ".png"
+    if filename is not None:
+        figname = filename + ".png"
     if axis is not None:
         plt.axis(axis)
     plt.yscale(y_scale)
@@ -88,7 +91,7 @@ def transformCurvesToPlot(y_pts, x_pts):
 
 
 def plotPlotBox(y_pts, y_label=None, x_label=None, title=None, axis=None, label=None, show=True,
-                figure=0):
+                figure=0, filename=None):
     plt.figure(figure)
     plt.boxplot(y_pts)
     if y_label is not None:
@@ -100,6 +103,8 @@ def plotPlotBox(y_pts, y_label=None, x_label=None, title=None, axis=None, label=
         figname = title.replace(" ", "_") + ".png"
     else:
         figname = str(figure) + ".png"
+    if filename is not None:
+        figname = filename + ".png"
     if axis is not None:
         plt.axis(axis)
     plt.draw()
