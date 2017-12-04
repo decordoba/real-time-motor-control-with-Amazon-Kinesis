@@ -9,7 +9,11 @@ python3 motor_consumer.py -s motor_data
 # Write some values to the motor as an example
 python3 motor_producer.py -s motor_data
 
-# Attempt PID control
+# Attempt PID control that reads encoder values from stream and writes motor values to another
+# stream (PID will fail due to the delay of streams). Use goal_producer to set goal angle
+python3 encoder_thread_producer.py -s encoder_data
+python3 motor_consumer.py -s motor_data
+python3 goal_producer.py -s encoder_data
 python3 encoder_motor_converter.py -sin encoder_data -sout motor_data
 
 # Change motor's goal position
@@ -18,6 +22,14 @@ python3 goal_producer.py -s encoder_data
 # See delays local PID control and 2 streams
 python3 json_producer.py -s encoder_data
 python3 json_consumer.py -s motor_data -t 30 -p 150
+
+# System identification
+python3 motor_encoder_producer.py -s sin
+
+# Closed loop system
+python3 pid_controller.py -sin pid_controller -sout sin
+python3 goal_producer.py -s pid_controller
+python3 pid_producer.py -s pid_controller
 
 ### EC2 INSTANCE
 # Show delays one stream
