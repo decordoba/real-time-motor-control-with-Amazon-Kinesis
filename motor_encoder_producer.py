@@ -51,7 +51,7 @@ def create_parser():
                         "Default is 1 ms.", default=1, metavar="MILLISECONDS",)
     parser.add_argument("-ns", "--number_samples", dest="number_samples", type=int,
                         help="Number of samples (values sent to the motor) before stopping the"
-                        "program. Default is 10000.", default=10000, metavar="MOTOR_WRITES",)
+                        " program. Default is 10000.", default=10000, metavar="MOTOR_WRITES",)
     return parser.parse_args()
 
 
@@ -140,19 +140,6 @@ class encoder_reader(threading.Thread):
         if pos > 180:
             return pos - 360
         return pos
-
-    def status(self):
-        # Create json object that will be sent
-        obj = {}
-        obj["msg_type"] = self.message_type
-        obj["value"] = self.get_angle()
-        obj["timestamp"] = str(datetime.datetime.now())
-        obj["sequence"] = self.message_number
-        obj["counter"] = self.counter
-        self.message_number += 1
-
-        # Convert dictionary to json and return it
-        return json.dumps(obj)
 
     def value(self):
         # Return value in degrees
@@ -243,9 +230,8 @@ class motor_writer(threading.Thread):
                 while datetime.datetime.now() < terminate_time:
                     pass
                 encoder_value, i = self.reader.value()
-                motor_value = self.motor_values[self.counter]
+                motor_value = int(self.motor_values[self.counter])
                 self.move_motor(motor_value)
-                print(self.counter, motor_value, encoder_value)
                 self.add_json_to_list(encoder_value, motor_value, i)
                 self.counter += 1
                 if self.counter >= self.num_samples:
