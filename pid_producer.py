@@ -71,6 +71,8 @@ def main():
     while len(usr_input) == 0 or usr_input[0].lower() != "q":
         usr_input = input("Enter {} constant. Type 'p', 'i', 'd' to change constant sent. "
                           "Type q to exit.\n>> ".format(constant))
+        if len(usr_input) == 0:
+            continue
         if usr_input[0].lower() == "q":
             continue
         elif usr_input[0].lower() == "p":

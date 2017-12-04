@@ -70,6 +70,8 @@ def main():
     while len(usr_input) == 0 or usr_input[0].lower() != "q":
         usr_input = input("Enter goal motor position (integer from -180 to 180). "
                           "Type 999 to stop the motor. Type q to exit.\n>> ")
+        if len(usr_input) == 0:
+            continue
         if usr_input[0].lower() == "q":
             continue
         try:

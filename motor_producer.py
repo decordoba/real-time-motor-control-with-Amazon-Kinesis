@@ -69,6 +69,8 @@ def main():
     counter = 0
     while len(usr_input) == 0 or usr_input[0].lower() != "q":
         usr_input = input("Enter motor speed (integer from -255 to 255). Type 999 to release it. Type q to exit.\n>> ")
+        if len(usr_input) == 0:
+            continue
         if usr_input[0].lower() == "q":
             continue
         try:
