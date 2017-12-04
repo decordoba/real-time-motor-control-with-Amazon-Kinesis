@@ -30,7 +30,12 @@ This motor has 6 wires:
 
 
 def create_parser():
-    parser = argparse.ArgumentParser("Send encoder data as json objects into a selected stream.")
+    parser = argparse.ArgumentParser("""
+Read encoder, apply PID, and move the motor accordingly to reach the goal position.
+The goal position and the PID constants can be changed remotely through a stream message.
+The code also has the potential of sending the encoder and motor data so that system
+identification or adaptative control can be run remotely.
+""")
     parser.add_argument("-sin", "--stream_in", dest="stream_in_name", required=True,
                         help="The stream you'd like to read from.", metavar="STREAM_NAME",)
     parser.add_argument("-sout", "--stream_out", dest="stream_out_name", required=True,
@@ -54,7 +59,7 @@ def create_parser():
     parser.add_argument("-mp", "--motor_period", dest="motor_period", type=int,
                         help="Period to wait every time we write to the motor. "
                         "Default is 1 ms.", default=1, metavar="MILLISECONDS",)
-    defaults = (2.5, 0.0, 0.6)  # For P, I, D
+    defaults = (2.5, 0.0, 0.6)  # For P, I, D  (these defaults work wellish for my motor)
     parser.add_argument("-pc", "--p_constant", dest="p_constant", default=defaults[0],
                         type=float, help="Initial P constant. Default is {}.".format(defaults[0]))
     parser.add_argument("-ic", "--i_constant", dest="i_constant", default=defaults[1],
@@ -125,6 +130,7 @@ class encoder_reader(threading.Thread):
         self.stop_event = threading.Event()
 
     def reset(self):
+        # Set current encoder position as 0, and start over
         self.position = 0
         self.counter = 0
 
@@ -175,7 +181,7 @@ class encoder_reader(threading.Thread):
 
 
 class motor_writer(threading.Thread):
-    # Write motor and read encoder, and save both values into a list
+    # Read encoder, perform PID transformation, and move motor accordingly
     def __init__(self, motor, encoder_reader, period_ms=1, encoder_sample_diff=1, p=1, i=0, d=0,
                  invert_motor=False):
         threading.Thread.__init__(self)
@@ -236,6 +242,7 @@ class motor_writer(threading.Thread):
             self.prev_speed = speed
 
     def update_pid_constants(self, p=None, i=None, d=None):
+        # Update PID constants, ignore values None or 999
         if p is not None and p != 999:
             self.p = p
         if i is not None and i != 999:
@@ -244,6 +251,7 @@ class motor_writer(threading.Thread):
             self.d = d
 
     def update_goal_value(self, goal):
+        # Update goal position, if 999 is received reset system
         if goal == 999:
             # Stop motor and reset current value and goal value
             self.reset()
@@ -281,13 +289,9 @@ class motor_writer(threading.Thread):
         derivative = self.d * (encoder_value2 - encoder_value1) / (time_diff)
         integral = 0 * self.i
         speed = proportional + derivative + integral
-        # print("FINAL IDS", id1, id2)
-        # print(self.p, self.i, self.d)
-        # print(self.goal_value)
-        # print("Diff time", time_diff)
-        # print(proportional, derivative, integral)
-        print(encoder_value1, encoder_value2, speed, self.goal_value)
-        # print(encoder_value1, encoder_value2, self.p, self.i, self.d, self.goal_value)
+        print("Encoder Position: {}".format(encoder_value2))
+        print("Motor Speed Sent: {}".format(speed))
+        print("Goal Position   : {}\n".format(self.goal_value))
         return speed
 
     def reset(self):
@@ -307,7 +311,7 @@ class motor_writer(threading.Thread):
             while not self.stop_event.is_set():
                 motor_value = self.get_pid()
                 self.move_motor(motor_value)
-                # self.add_json_to_list(motor_value)
+                # self.add_json_to_list(motor_value)  # We could use this to send messages int sout
                 self.counter += 1
         finally:
             # When the program ends after an exception or naturally, release motors
@@ -315,15 +319,17 @@ class motor_writer(threading.Thread):
             self.stop()
 
     def status(self):
+        # We could use this to return all motor and encoder positions
+        # See how it is done in motor_encoder_producer.py
         obj = self.counter
         self.message_number += 1
-        # Convert dictionary to json and return it
         return json.dumps(obj)
 
     def stop(self):
         self.stop_event.set()
 
     def finished(self):
+        # Call this to find out if the thread execution has finshed
         return self.stop_event.is_set()
 
 
@@ -403,26 +409,8 @@ def main():
                     d = obj["d"]
                     writer.update_pid_constants(p, i, d)
 
-                # # Send data
-                # obj["value"] = (obj["value"] % 360)  # transform values from linear to degrees
-                # obj["value"] = obj["value"] - 360 if obj["value"] > 180 else obj["value"]
-                # obj["value"] = (obj["value"] - goal_pos) * p_constant  # P transformation
-                # obj["msg_type"] = 1  # type 1 refers to motor data
-                # obj["timestamp2"] = str(datetime.datetime.now())  # Add new timestamp
-
-                # # Send object in output stream
-                # json_str_out = json.dumps(obj)
-
-                # # Send into stream
-                # try:
-                #     kinesis_client.put_record(StreamName=stream_name_out, Data=json_str_out,
-                #                               PartitionKey="123")
-                #     print("Received: '{}' from stream '{}'.".format(json_str_in, stream_name_in))
-                #     print("Sent:     '{}' into stream '{}'.".format(json_str_out, stream_name_out))
-                # except Exception as e:
-                #     print("Encountered an exception while trying to put record '{}'"
-                #           " into stream '{}'.".format(stream_name_out))
-                #     print("Exception: {}.".format(json_str_out, e))
+                # Motor and encoder data could be sent here if we want a closed loop
+                # See how it is done in motor_encoder_producer.py
 
                 # Wait delay
                 time.sleep(sleep_s)

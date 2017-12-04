@@ -7,7 +7,8 @@ import json
 
 def create_parser():
     parser = argparse.ArgumentParser("""
-Receive encoder data from input stream and send it to output stream transformed
+Receive encoder data from input stream, transform it into motor data using a rudimentary PID
+controller and send it into the output stream.
 """)
     parser.add_argument("-sin", "--stream_in", dest="stream_in_name", required=True,
                         help="The stream you'd like to read from.", metavar="STREAM_NAME",)
@@ -103,6 +104,7 @@ def main():
     # Send messages from 'stream in' to 'stream out' after transforming them
     max_num_records = 10000
     sleep_s = 0.0 if args.period is None else args.period / 1000
+    invert_motor = True
     p_constant = 255 / 180
     goal_pos = 0
     while True:
@@ -129,8 +131,10 @@ def main():
 
             # Transform data
             obj["value"] = (obj["value"] % 360)  # transform values from linear to degrees
-            obj["value"] = obj["value"] - 360 if obj["value"] > 180 else obj["value"]
+            obj["value"] = 360 - obj["value"] if obj["value"] > 180 else obj["value"]
             obj["value"] = (obj["value"] - goal_pos) * p_constant  # P transformation
+            if invert_motor:
+                obj["value"] = -obj["value"]
             obj["msg_type"] = 1  # type 1 refers to motor data
             obj["timestamp2"] = str(datetime.datetime.now())  # Add new timestamp
 

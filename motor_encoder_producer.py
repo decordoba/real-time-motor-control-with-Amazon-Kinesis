@@ -30,7 +30,10 @@ This motor has 6 wires:
 
 
 def create_parser():
-    parser = argparse.ArgumentParser("Send encoder data as json objects into a selected stream.")
+    parser = argparse.ArgumentParser("""Assign random values to a motor and send the encoder data
+recieved as well as the motor data used, as json objects into a selected stream. This can be used
+for System Identification.""")
+
     parser.add_argument("-s", "--stream", dest="stream_name", required=True,
                         help="The stream you'd like to create.", metavar="STREAM_NAME",)
     parser.add_argument("-r", "--regionName", "--region", dest="region", default="us-east-1",
