@@ -1,0 +1,45 @@
+-- ** Continuous Filter **
+--          .----------.   .----------.   .----------.
+--          |  SOURCE  |   |  INSERT  |   |  DESTIN. |
+-- Source-->|  STREAM  |-->| & SELECT |-->|  STREAM  |-->Destination
+--          |          |   |  (PUMP)  |   |          |
+--          '----------'   '----------'   '----------'
+
+--stream where we do some transformations
+CREATE OR REPLACE STREAM "IN_APP_STREAM_001" (
+    encoder integer,
+    motor integer,
+    msg_type integer,
+    sequence integer,
+    timestamp1 timestamp,
+    timestamp2 timestamp,
+    timestamp3 timestamp
+    );
+
+CREATE OR REPLACE PUMP "STREAM_PUMP_001" AS
+    INSERT INTO "IN_APP_STREAM_001"
+        SELECT STREAM "encoder", "motor", 5, "motor_counter", "COL_timestamp", "SOURCE_SQL_STREAM_001".ROWTIME, CURRENT_TIMESTAMP
+        FROM "SOURCE_SQL_STREAM_001"
+        WHERE "msg_type" = 3;  --send only inputs of type 3
+
+--create destination stream format
+CREATE OR REPLACE STREAM "DESTINATION_SQL_STREAM" (
+    encoder integer,
+    motor integer,
+    msg_type integer,
+    sequence integer,
+    timestamp1 timestamp,
+    timestamp2 timestamp,
+    timestamp3 timestamp,
+    timestamp4 timestamp,
+    timestamp5 timestamp
+    );
+
+CREATE OR REPLACE PUMP "OUTPUT_PUMP" AS
+    INSERT INTO "DESTINATION_SQL_STREAM"
+        SELECT STREAM
+        "IN_APP_STREAM_001".encoder, "IN_APP_STREAM_001".motor, "IN_APP_STREAM_001".msg_type,
+        "IN_APP_STREAM_001".sequence, "IN_APP_STREAM_001".timestamp1, "IN_APP_STREAM_001".timestamp2,
+        "IN_APP_STREAM_001".timestamp3, "IN_APP_STREAM_001".ROWTIME, CURRENT_TIMESTAMP
+        FROM "IN_APP_STREAM_001";
+
