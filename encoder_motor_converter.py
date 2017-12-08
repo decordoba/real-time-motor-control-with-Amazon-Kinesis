@@ -24,6 +24,8 @@ controller and send it into the output stream.
                         help="Period to wait between reading the stream. If not set, data will "
                         "be iread and sent as fast as possible.",
                         metavar="MILLISECONDS",)
+    parser.add_argument("--silent", dest="silent", action="store_true", help="Use it to mute "
+                        "terminal prints every time a message is sent",)
     return parser.parse_args()
 
 
@@ -107,6 +109,8 @@ def main():
     invert_motor = True
     p_constant = 255 / 180
     goal_pos = 0
+    if args.silent:
+        print("Reading stream and sending data every every {} seconds.".format(sleep_s))
     while True:
         try:
             records = kinesis_client.get_records(ShardIterator=shard_iterator,
@@ -120,6 +124,7 @@ def main():
             # Receive object from input stream
             json_str_in = record["Data"].decode("utf-8")
             obj = json.loads(json_str_in)
+            obj["timestamp2"] = str(datetime.datetime.now())  # Add new timestamp
 
             # Update goal_postion if we get a message of type 2
             if obj["msg_type"] == 2:
@@ -136,7 +141,7 @@ def main():
             if invert_motor:
                 obj["value"] = -obj["value"]
             obj["msg_type"] = 1  # type 1 refers to motor data
-            obj["timestamp2"] = str(datetime.datetime.now())  # Add new timestamp
+            obj["timestamp3"] = str(datetime.datetime.now())  # Add new timestamp
 
             # Send object in output stream
             json_str_out = json.dumps(obj)
@@ -145,8 +150,9 @@ def main():
             try:
                 kinesis_client.put_record(StreamName=stream_name_out, Data=json_str_out,
                                           PartitionKey="123")
-                print("Received: '{}' from stream '{}'.".format(json_str_in, stream_name_in))
-                print("Sent:     '{}' into stream '{}'.".format(json_str_out, stream_name_out))
+                if not args.silent:
+                    print("Received: '{}' from stream '{}'.".format(json_str_in, stream_name_in))
+                    print("Sent:     '{}' into stream '{}'.".format(json_str_out, stream_name_out))
             except Exception as e:
                 print("Encountered an exception while trying to put record '{}'"
                       " into stream '{}'.".format(stream_name_out))
