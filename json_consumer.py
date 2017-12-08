@@ -10,6 +10,7 @@ from matplotlib_utils import plotLine, plotPlotBox, plt_ion, plt_ioff
 def create_parser():
     parser = argparse.ArgumentParser("""
 Read and print the contents of a selected stream as fast as possible, and plot performance.
+The plots will also be saved into the figures folder.
 """)
     parser.add_argument("-s", "--stream", dest="stream_name", required=True,
                         help="The stream you'd like to create.", metavar="STREAM_NAME",)
@@ -22,12 +23,20 @@ Read and print the contents of a selected stream as fast as possible, and plot p
     parser.add_argument("-t", "--timeout", dest="timeout", type=int, default=60,
                         help="When to timeout and plot results. Default waits 1 minute.",
                         metavar="SECONDS",)
+    parser.add_argument("-m", "--max_records", dest="max_records", type=int, default=None,
+                        help="If set, stop monitoring stream after reading N records.",
+                        metavar="RECORDS",)
     choices = ["LATEST", "TRIM_HORIZON"]
     parser.add_argument("-sit", "--shard_iterator_type", dest="shard_iterator_type", type=str,
                         default=choices[0], choices=choices, help="Select what data will be "
                         "returned from stream every query. Options are "
                         "{}. Default is '{}'.".format(choices, choices[0]),
                         metavar="SHARD_ITERATOR_TYPE")
+    parser.add_argument("--noplot", dest="noplot", action="store_true", help="Do not plot "
+                        "any figure. The figures will still be saved in figures/ folder.",)
+    parser.add_argument("-f", "--filename", dest="filename", default=None,
+                        help="Choose file name to save data recorded. If unset, the data will"
+                        " not be saved.", metavar="FILE_NAME",)
     return parser.parse_args()
 
 
@@ -66,6 +75,7 @@ def main():
     start_end_times = []
     sleep_time = 0.0 if args.period is None else args.period / 1000.0
     number_exceptions = 0
+    num_records = 0
     try:
         print("Monitoring data in stream for {} seconds.".format(args.timeout))
         while datetime.datetime.now() < terminate_time:
@@ -75,12 +85,15 @@ def main():
                 now_time = datetime.datetime.now()
                 for r in records["Records"]:
                     start_end_times.append((r["Data"], now_time))
+                    num_records += 1
                 shard_iterator = records["NextShardIterator"]  # Update shard_iterator
+                if args.num_records is not None and num_records >= args.max_records:
+                    break
                 time.sleep(sleep_time)
             except Exception as e:
                 number_exceptions += 1
                 time.sleep(0.01)
-        print("Finished data monitoring.".format(args.timeout))
+        print("Finished data monitoring.")
     except KeyError:
         print("Ctrl+C interrupt received, prematurely halting data monitoring.")
 
@@ -90,6 +103,7 @@ def main():
         time0 = json.loads(json_obj0.decode("utf-8"))["timestamp"]
         delay = time1 - datetime.datetime.strptime(time0, "%Y-%m-%d %H:%M:%S.%f")
         delays.append(delay)
+    delays = delays[:args.max_records]
     delays = np.array(delays)
     delays_ms = [1000.0 * d.total_seconds() for d in delays]
     print("Samples: {}".format(len(delays)))
@@ -112,16 +126,20 @@ def main():
         prev_delay += d
         cum_delays_ms.append(prev_delay)
 
-    # Plot 4 figures
-    plt_ion()
-    plotLine(delays_ms, x_label="samples", y_label="ms", title="Delays", figure=0, color="r")
-    plotLine(bucket_delays_ms, x_label="ms", y_label="# cases", title="Historiogram delays",
-             figure=1, color="b")
-    plotLine(cum_delays_ms, x_label="ms", y_label="# cases", title="Cumulative delays", figure=2,
-             color="m")
-    plotPlotBox(delays_ms, y_label="ms", title="Box plot delays", figure=3)
-    plt_ioff()
-    input("Type ENTER to close all figures.")
+    if args.filename is not None:
+        np.save(args.filename, delays_ms)
+
+    if not args.noplot:
+        # Plot 4 figures
+        plt_ion()
+        plotLine(delays_ms, x_label="samples", y_label="ms", title="Delays", figure=0, color="r")
+        plotLine(bucket_delays_ms, x_label="ms", y_label="# cases", title="Historiogram delays",
+                 figure=1, color="b")
+        plotLine(cum_delays_ms, x_label="ms", y_label="# cases", title="Cumulative delays",
+                 figure=2, color="m")
+        plotPlotBox(delays_ms, y_label="ms", title="Box plot delays", figure=3)
+        plt_ioff()
+        input("Type ENTER to close all figures.")
 
 
 if __name__ == '__main__':
