@@ -19,6 +19,8 @@ Send random data as json objects into a selected stream.
                         help="Period to wait between sending json messages. If not set, data will "
                         "be sent as fast as possible.",
                         metavar="MILLISECONDS",)
+    parser.add_argument("--silent", dest="silent", action="store_true", help="Use it to mute "
+                        "terminal prints every time a message is sent",)
     return parser.parse_args()
 
 
@@ -72,6 +74,8 @@ def main():
     # Now the stream should exist
     n = [0, 0, 0]
     sleep_s = 0.0 if args.period is None else args.period / 1000
+    if args.silent:
+        print("Sending a json object every {} seconds.".format(sleep_s))
     while True:
         # Create object
         obj = {}
@@ -91,8 +95,9 @@ def main():
         # Send into stream
         try:
             kinesis_client.put_record(StreamName=stream_name, Data=json_str, PartitionKey="123")
-            print("{:5}. Sent data '{:+.5f}' with message type '{}' into stream '{}'.".format(
-                    obj["sequence"], obj["value"], obj["msg_type"], stream_name))
+            if not args.silent:
+                print("{:5}. Sent data '{:+.5f}' with message type '{}' into stream '{}'.".format(
+                      obj["sequence"], obj["value"], obj["msg_type"], stream_name))
         except Exception as e:
             print("Encountered an exception while trying to put record '{}'".format(json_str) +
                   " into stream '{}'.".format(stream_name))
