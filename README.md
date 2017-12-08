@@ -5,7 +5,7 @@ Create streams, send and receive data from them, and find out what they can do u
 This repository contains a lot of codes to play with streams (in general producers write into a stream, and consumers read from them),
 and it also contains some instructions to install aws in your system.
 
-## Steps to make code work
+## Steps to install
 1. Make sure you can run the commands in `my_first_stream.sh`. For this, you will need to install awscli and configure keys, region and format using 'aws configure'.
 Read this to get started: https://docs.aws.amazon.com/streams/latest/dev/kinesis-tutorial-cli-installation.html
 
