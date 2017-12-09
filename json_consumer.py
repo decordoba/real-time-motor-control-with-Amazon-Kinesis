@@ -18,8 +18,7 @@ The plots will also be saved into the figures folder.
                         help="The region you'd like to make this stream in. Default is "
                         "'us-east-1'", metavar="REGION_NAME",)
     parser.add_argument("-p", "--period", dest="period", type=int, default=None,
-                        help="How often to read stream. Default is 0. This number will increase"
-                        " if the stream is read too often.", metavar="MILLISECONDS",)
+                        help="How often to read stream. Default is 0.", metavar="MILLISECONDS",)
     parser.add_argument("-t", "--timeout", dest="timeout", type=int, default=60,
                         help="When to timeout and plot results. Default waits 1 minute.",
                         metavar="SECONDS",)
@@ -33,7 +32,7 @@ The plots will also be saved into the figures folder.
                         "{}. Default is '{}'.".format(choices, choices[0]),
                         metavar="SHARD_ITERATOR_TYPE")
     parser.add_argument("--noplot", dest="noplot", action="store_true", help="Do not plot "
-                        "any figure. The figures will still be saved in figures/ folder.",)
+                        "or save any figure.",)
     parser.add_argument("-f", "--filename", dest="filename", default=None,
                         help="Choose file name to save data recorded. If unset, the data will"
                         " not be saved.", metavar="FILE_NAME",)
@@ -87,7 +86,7 @@ def main():
                     start_end_times.append((r["Data"], now_time))
                     num_records += 1
                 shard_iterator = records["NextShardIterator"]  # Update shard_iterator
-                if args.num_records is not None and num_records >= args.max_records:
+                if args.max_records is not None and num_records >= args.max_records:
                     break
                 time.sleep(sleep_time)
             except Exception as e:
@@ -103,7 +102,8 @@ def main():
         time0 = json.loads(json_obj0.decode("utf-8"))["timestamp"]
         delay = time1 - datetime.datetime.strptime(time0, "%Y-%m-%d %H:%M:%S.%f")
         delays.append(delay)
-    delays = delays[:args.max_records]
+    if args.max_records is not None:
+        delays = delays[:args.max_records]
     delays = np.array(delays)
     delays_ms = [1000.0 * d.total_seconds() for d in delays]
     print("Samples: {}".format(len(delays)))
