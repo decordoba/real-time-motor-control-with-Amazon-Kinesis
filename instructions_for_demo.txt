@@ -21,25 +21,27 @@ python3 goal_producer.py -s encoder_data
 
 # See delays local PID control and 2 streams
 python3 json_producer.py -s encoder_data
+python3 encoder_motor_converter.py -sin encoder_data -sout motor_data
 python3 json_consumer.py -s motor_data -t 30 -p 150
 
 # System identification
 python3 motor_encoder_producer.py -s sin
 
-# Closed loop system
+# Closed loop adptive control
 python3 pid_controller.py -sin pid_controller -sout sin
 python3 goal_producer.py -s pid_controller
 python3 pid_producer.py -s pid_controller
 
-### EC2 INSTANCE
-# Show delays one stream
+# Show delays in one stream
 python3 json_producer.py -s demo_stream
 python3 json_consumer.py -s demo_stream -t 30 -p 150
 
 # See delays kinesis analytics and 2 streams
+# (there needs to be a kinesis analitics process echoing from sin to sout)
 python3 json_producer.py -s sin
 python3 json_consumer.py -s sout -t 30 -p 150
 
 # See pid transformation kinesis analytics
+# (there needs to be a kinesis analitics process doing PID from sin to sout)
 python3 json_producer.py -s sin -p 500
 python3 stream_consumer.py -s sout -p 200 -sit LATEST
