@@ -34,3 +34,12 @@ it will send these words once into the stream. A period in ms can be set with th
 * `stream_consumer.py`: Reads a stream, whose name can be selected with the `-s` argument, and prints its contents in the terminal. A region can be selected with the `-r` argument.
 If a period in ms is chosen with the `-p` argument, it will continue to read the stream at the selected rate and print the new data received. The `-sit` argument can be used to choose the
 shard iterator type. Use `"LATEST"` to see only the data received after starting to read the stream, or omit this parameter to see all the data pushed to the stream since its creation.
+* `delete_stream.py`: Delete all existing streams, or delete only one stream using the `-s` argument followed by the stream name has to be deleted. A region can be specified with the `-r` argument.
+* `json_producer.py`: Creates a stream, and sends a json object with random data into it. The object has four fields: a `msg_type`, a `value`, a `sequence` number and a `timestamp`.
+Again, the stream name is chosen with `-s`, and the region with `-r`. The `-p` argument can be used to set a constant rate at which to send messages into the stream, in ms. The `--silent` flag
+can be used to mute the notification every time a message is sent.
+* `json_consumer.py`: Monitors a stream for a number of seconds, and plots graphs with statistics about the delay observed. Expects a stream receiving json objects with the field `timestamp`
+in them, like the ones sent by `json_producer.py`. Again, the stream name is chosen with `-s`, and the region with `-r`. The `-p` argument can be used to set a constant rate at which
+to get the contents of the stream, in ms. This rate will (obviously) affect the results shown in the statistics. Choose the time in seconds to monitor the stream before plotting with the `-t` argument.
+Choose the number of json objects to read before stopping monitoring with the `-m` argument. Use the `--noplot` flag to stop plotting, and the `-f` argument to select the filename to save the data as
+an `.npy` file. If `-f` is not set, the data will not be saved.
