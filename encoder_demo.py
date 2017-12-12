@@ -10,7 +10,7 @@ Your encoder should have 4 wires:
     * A Vout: Connect to clk
     * B Vout: Connect to dt
 
-In my case, I am using the JGA25-371 motor, which has encoder and a motor.
+In my case, I am using the JGA25-371 motor, which has an encoder and a motor.
 This motor has 6 wires:
     * Motor GND (Black): DO NOT CONNECT TO Raspberry Pi, USE H-BRIDGE
     * Motor Vcc (Red):   DO NOT CONNECT TO RPi, USE H-BRIDGE

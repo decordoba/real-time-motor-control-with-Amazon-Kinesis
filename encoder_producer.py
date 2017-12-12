@@ -35,8 +35,8 @@ def create_parser():
                         help="The region you'd like to make this stream in. Default "
                         "is 'us-east-1'", metavar="REGION_NAME",)
     parser.add_argument("-p", "--period", dest="period", type=int,
-                        help="Period to wait between every encoder parse and stream transmition. "
-                        "If not set, data will be sent as fast as possible.",
+                        help="Period to wait between every encoder parse and stream transmission."
+                        " If not set, data will be sent as fast as possible.",
                         metavar="MILLISECONDS",)
     return parser.parse_args()
 
