@@ -71,15 +71,22 @@ Again, the stream name is chosen with `-s`, and the region with `-r`.
 and sends those values to a stream `-sout`, to move the motor accordingly. Regions can be selected with `-rin` and `-rout`. The rate at which the input stream is read
 can be controlled with `-p`, or it will be read as fast as possible if `-p` is omitted. To omit the program prints when receiving encoder data, use the `--silent` flag.
 
-**`pid_controller.py`:**
+**`pid_controller.py`:** PID motor controller, receives encoder values, applies a PID transformation and moves the motor accordingly trying to reach an angular goal position of the DC motor.
+Listens to a stream (chosen with `-sin`, in region `-rin`) constantly to update the motor goal position and PID constants it uses. The rate at which the input stream is read
+can be controlled with `-p`, or it will be read as fast as possible if `-p` is omitted. The encoder's CLK and DT connection GPIO numbers can be selected with the arguments
+`-clk` and `-dt`, and the motor number can be selected with the `-m` argument. The initial P, I and D constants can be chosen using `-pc`, `-ic` and `-dc`. Works best with 
+`pid_producer.py` and `goal_producer.py`, which can be used to manually change the PID constants and goal position respectively.
 
-**`pid_producer.py`:** Prompts the user with a dialogue to change the the P, I and D constants used in the PID controller, and sends those changes into a stream.
+**`pid_producer.py`:** Prompts the user with a dialogue to change the P, I and D constants used in the PID controller, and sends those changes into a stream.
 Start a `pid_controller` listening at this stream and use this program to modify the PID constants used by it.
 Again, the stream name is chosen with `-s`, and the region with `-r`.
 
-**`goal_producer.py`:**
+**`goal_producer.py`:** Prompts the user with a dialogue to change the goal position used in the PID controller, and sends such value into a stream.
+Start a `pid_controller` listening at this stream and use this program to modify the goal position where we want to move the motor.
+Again, the stream name is chosen with `-s`, and the region with `-r`.
 
-**`motor_encoder_producer.py`:**
+**`motor_encoder_producer.py`:** Program for system identification in a motor-encoder system. Assigns random values to the motor, reads the encoder values, and
+sends both values into a stream constantly for `-ns` samples.
 
 This repository contains other files not mentioned here, but all of them are variations of the ones described above. To learn how to use these, please use the `-h` option or look into their code
 (often the comments are useful to see my success with them, or their goal).
