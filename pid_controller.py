@@ -47,7 +47,7 @@ identification or adaptative control can be run remotely.
                         help="The region where stream_out is. Default is 'us-east-1'",
                         metavar="REGION_NAME",)
     parser.add_argument("-p", "--period", dest="period", type=int,
-                        help="Period to wait between every stream transmition. "
+                        help="Period to wait between every stream transmission. "
                         "If not set, data will be sent as fast as possible.",
                         metavar="MILLISECONDS",)
     parser.add_argument("--clk", dest="clk", default=17, help="The GPIO where our encoder's clk "
