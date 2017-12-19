@@ -33,11 +33,18 @@ def plotLine(y_pts, x_pts=None, y_label=None, x_label=None, title=None, axis=Non
     """
     plt.figure(figure)
     if x_pts is None:
-        plt.plot(y_pts, color + style, label=label)
+        if isinstance(y_pts, list) and isinstance(y_pts[0], list):
+            for y, lab in zip(y_pts, label):
+                plt.figure(figure)
+                plt.plot(y, label=lab)
+        else:
+            plt.plot(y_pts, color + style, label=label)
     else:
         if isinstance(y_pts, list) and isinstance(y_pts[0], list):
             (y_pts, x_pts) = transformCurvesToPlot(y_pts, x_pts)
         plt.plot(x_pts, y_pts, color + style, label=label)
+    if label is not None:
+        plt.legend()
     if y_label is not None:
         plt.ylabel(y_label)
     if x_label is not None:
@@ -91,9 +98,12 @@ def transformCurvesToPlot(y_pts, x_pts):
 
 
 def plotPlotBox(y_pts, y_label=None, x_label=None, title=None, axis=None, label=None, show=True,
-                figure=0, filename=None):
+                figure=0, outliers=True, mean=False, filename=None):
     plt.figure(figure)
-    plt.boxplot(y_pts)
+    if outliers:
+        plt.boxplot(y_pts, labels=label, showmeans=mean)
+    else:
+        plt.boxplot(y_pts, 0, "", labels=label, showmeans=mean)
     if y_label is not None:
         plt.ylabel(y_label)
     if x_label is not None:
